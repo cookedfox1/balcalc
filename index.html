@@ -25,7 +25,7 @@ canvas{width:100%;max-width:460px;aspect-ratio:1;border:1px solid var(--b);borde
 .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
 .card{background:#0f1317;border:1px solid var(--b);border-radius:4px;padding:8px;text-align:center}
 .card b{display:block;color:var(--a);font-size:1.05rem}.card span{font-size:.68rem;color:var(--m);text-transform:uppercase}
-#hint{margin-top:10px;font-size:1rem;font-weight:600;text-align:center;color:#fbbf24;min-height:2.6em;line-height:1.4}
+#hint{margin-top:10px;font-size:1rem;font-weight:600;text-align:center;color:#fbbf24;min-height:4.2em;line-height:1.4}
 .tw{overflow:auto;max-height:380px;border:1px solid var(--b);border-radius:4px}
 table{width:100%;border-collapse:collapse;font-size:.82rem;text-align:right;white-space:nowrap}
 th,td{padding:6px 9px;border-bottom:1px solid var(--b)}th{background:#161c22;color:var(--a);position:sticky;top:0}
@@ -148,7 +148,7 @@ function sel(){const r=+$('sl').value;$('magv').textContent=f1(+$('mag').value);
 document.querySelectorAll('#tb tr').forEach(t=>t.classList.toggle('sel',+t.dataset.r===r));
 $('s1').textContent=f1(w.drop)+' cm';$('s2').textContent=f1(w.hold)+' mil';$('s3').textContent=f1(w.wind)+' / '+f1(w.spin)+' cm';$('s4').textContent=f1(w.v)+' m/s';$('s5').textContent=f1(w.e)+' J';$('s6').textContent=f1(w.t)+' ms';
 const side=w.wh>=0?'right':'left',vs=w.hold>=0?'up':'down';
-$('hint').innerHTML=`<div>${S.zo?'Vertical hold':'Vertical dial'}: ${f1(Math.abs(w.hold))} mil ${vs}</div><div>Horizontal hold: ${f1(Math.abs(w.wh))} mil ${side}</div>`;
+$('hint').innerHTML=`<div>${S.zo?'Vertical hold':'Vertical dial'}: ${f1(Math.abs(w.hold))} mil ${vs}</div><div>Horizontal hold: ${f1(Math.abs(w.wh))} mil ${side}</div><div>Time of flight: ${f1(w.t/1000)} s</div>`;
 $('vt').textContent=(S.zo?'VCOG sight picture':'Sight picture')+' – '+f1(r)+' m';draw(w)}
 function draw(w){const c=$('cv'),X=c.getContext('2d'),Wd=460,dpr=window.devicePixelRatio||1,cw=c.clientWidth||Wd,k=cw*dpr/Wd;c.width=c.height=Math.round(cw*dpr);X.setTransform(k,0,0,k,0,0);
 const mag=+$('mag').value||1,mn=+$('mag').min||1,mxm=+$('mag').max||8,f1m=+$('fov1').value||364,fmm=+$('fovm').value||43.7,fov=(mxm>mn?f1m*mn+(fmm*mxm-f1m*mn)*(mag-mn)/(mxm-mn):f1m*mn)/mag,zm=440/fov*(+$('zm').value/16),cx=Wd/2,cy=Wd/2,hu=S.zo?w.hold:0,
