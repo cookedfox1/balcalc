@@ -3,6 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <title>Ballistics Calculator</title>
+<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#12161a"><link rel="apple-touch-icon" href="icon-192.png">
 <style>
 :root{--bg:#12161a;--p:#1c232a;--b:#2c3844;--a:#d97706;--t:#f3f4f6;--m:#9ca3af}
 *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif}
@@ -36,7 +37,12 @@ tr.sel{background:rgba(217,119,6,.28)}tr.tn td:nth-child(7){color:#fbbf24}tr.ss 
 body{padding:12px max(12px,env(safe-area-inset-right)) 12px max(12px,env(safe-area-inset-left));padding-top:max(12px,env(safe-area-inset-top));-webkit-text-size-adjust:100%}
 .hd{display:flex;align-items:center;gap:10px;border-bottom:2px solid var(--a);margin-bottom:12px}
 .hd h1{border:0;margin:0;padding:6px 0;flex:1;font-size:1.2rem}
-#vb{width:auto;margin:0;padding:9px 14px;font-size:.8rem}
+#vb,#rb{width:auto;margin:0;padding:9px 14px;font-size:.8rem}
+#rb{background:#374151}#rb.on{background:var(--a)}
+body:not(.rng) .rg{display:none}
+body.rng .nr,body.rng #adv,body.rng #rc,body.rng #vt{display:none}
+body.rng canvas{touch-action:none;cursor:move}
+#rd{font-size:1.7rem;font-weight:700;color:#fbbf24;text-align:center;margin-top:8px}
 summary{font-size:1rem;font-weight:700;margin:10px 0 8px;border-bottom:1px solid var(--b);padding-bottom:4px;cursor:pointer}
 .row{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:.9rem}.row span{white-space:nowrap}.row input[type=range]{flex:1;min-width:0}
 .pm{width:46px;margin:0;padding:8px 0;font-size:1.2rem;flex:none}
@@ -50,8 +56,13 @@ body.simple #hint{font-size:1.5rem;margin-top:8px}
 @media(max-width:991px){#adv{order:2}}
 @media(orientation:landscape) and (max-height:520px){body.simple .vp{display:grid;grid-template-columns:min(90vh,55vw) 1fr;gap:12px;align-items:start}body.simple canvas{max-width:none}body.simple #hint{font-size:1.25rem;margin-top:0}}
 @media print{table.lite :is(th,td){display:table-cell!important}}
+#sc{max-width:none;aspect-ratio:auto;height:150px;margin-top:10px}
+#warn{color:#fbbf24;font-size:.8rem;text-align:center;margin-top:4px}
+.sm{font-size:.8rem;font-weight:400;color:#d1d5db}
+#dope{display:none}
+@media print{body.dope>*:not(#dope){display:none!important}body.dope #dope{display:block;color:#000;font-size:12pt}#dope table{width:100%;border-collapse:collapse}#dope th,#dope td{border:1px solid #000;padding:4px 6px;text-align:right;color:#000;background:#fff}}
 </style></head><body>
-<header class="hd"><h1>Ballistics Calculator</h1><button id="vb" onclick="tv()">Advanced</button></header>
+<header class="hd"><h1>Ballistics Calculator</h1><button id="rb" onclick="tr()">Ranging</button><button id="vb" onclick="tv()">Advanced</button></header>
 <div class="wrap">
 <div class="panel noprint" id="adv">
 <details open><summary>Rifle</summary>
@@ -66,6 +77,9 @@ body.simple #hint{font-size:1.5rem;margin-top:8px}
 <div><label>Bullet length (mm)<i class="e" id="e_len">EST</i></label><input id="len" type="number" inputmode="decimal" step="any" value="33.1"></div></div>
 <div class="g"><div><label>BC G7<i class="e" id="e_bc7">EST</i></label><input id="bc7" type="number" inputmode="decimal" step="any" value="0.242"></div>
 <div><label>BC G1 (used only if G7 blank)</label><input id="bc1" type="number" inputmode="decimal" step="any" value="0.482"></div></div>
+<label class="ck"><input type="checkbox" id="mvk" checked> Adjust MV for barrel length</label>
+<div class="g"><div><label>MV test barrel (mm)</label><input id="mvb" type="number" inputmode="decimal" step="any" value="660"></div><div><label>MV change per 100 mm (m/s)</label><input id="mvs" type="number" inputmode="decimal" step="any" value="30"></div></div>
+<div class="g"><div><label>Measured MV (m/s, overrides)</label><input id="mvc" type="number" inputmode="decimal" step="any" value=""></div><div><label>MV change per °C (m/s)</label><input id="mvt" type="number" inputmode="decimal" step="any" value="0"></div></div>
 </details><details open><summary>Optic</summary>
 <div class="c"><select id="optic" onchange="pre('optic')"><option value="vcog">Trijicon VCOG 1-8x28 (zero-only turrets)</option><option value="mrad">Generic MRAD scope (turrets)</option><option value="custom">Custom</option></select></div>
 <div class="g"><div><label>Height over bore (mm)</label><input id="hob" type="number" inputmode="decimal" step="any" value="45"></div>
@@ -77,31 +91,41 @@ body.simple #hint{font-size:1.5rem;margin-top:8px}
 <div><label>Pressure (hPa, blank = from altitude)</label><input id="press" type="number" inputmode="decimal" step="any" value="1013.2"></div></div>
 <div class="g"><div><label>Humidity (%)</label><input id="hum" type="number" inputmode="decimal" step="any" value="50"></div>
 <div><label>Altitude (m)</label><input id="alt" type="number" inputmode="decimal" step="any" value="0"></div></div>
+<div class="g"><div><label>Zero temp (°C, blank = same)</label><input id="ztemp" type="number" inputmode="decimal" step="any" value=""></div><div><label>Zero pressure (hPa, blank = same)</label><input id="zpress" type="number" inputmode="decimal" step="any" value=""></div></div>
 <div class="g"><div><label>Wind speed (m/s)</label><input id="wspd" type="number" inputmode="decimal" step="any" value="0"></div>
 <div><label>Wind from (clock)</label><select id="wdir"><option value="12">12 (headwind)</option><option value="1">1</option><option value="2">2</option><option value="3" selected>3 (from right)</option><option value="4">4</option><option value="5">5</option><option value="6">6 (tailwind)</option><option value="7">7</option><option value="8">8</option><option value="9">9 (from left)</option><option value="10">10</option><option value="11">11</option></select></div></div>
 <label class="ck"><input type="checkbox" id="spin" checked> Include spin drift (right-hand twist)</label>
-</details><button onclick="run()">Recalculate</button><button class="s" onclick="window.print()">Print range card</button><button class="s" onclick="csv()">Export CSV</button>
+</details><button onclick="run()">Recalculate</button><button class="s" onclick="window.print()">Print range card</button><button class="s" onclick="csv()">Export CSV</button><button class="s" onclick="dopeCard()">Print dope card</button><button class="s" onclick="share()">Copy share link</button>
 </div>
 <div style="display:flex;flex-direction:column;gap:12px">
 <div class="panel vp"><h2 id="vt" class="ao">Sight picture</h2><canvas id="cv"></canvas>
-<div class="vc"><div id="hint"></div>
-<div class="row"><span>Range <b id="rv">300.0</b> m</span><button class="pm" onclick="stp(-25)">&minus;</button><input type="range" id="sl" min="100" max="800" step="25" value="300" oninput="sel()"><button class="pm" onclick="stp(25)">+</button></div>
-<div class="row"><span>Zoom <b id="magv">8.0</b>x</span><input type="range" id="mag" min="1" max="8" step="0.1" value="8" oninput="sel()"></div>
-<div class="row so"><span>Wind <b id="qwv">0.0 m/s</b></span><input type="range" id="qws" min="0" max="15" step="0.5" value="0" oninput="qw()"><select id="qwd" style="width:auto" onchange="qw()"></select></div>
-<div class="row ao"><span>Display zoom</span><input type="range" id="zm" min="4" max="64" step="1" value="16" oninput="sel()"></div>
-<div class="cards ao"><div class="card"><span>Drop</span><b id="s1"></b></div><div class="card"><span id="l2">Hold</span><b id="s2"></b></div><div class="card"><span>Wind / spin drift</span><b id="s3"></b></div>
+<div class="vc"><div class="rg"><div class="g" style="margin-bottom:0"><div><label>Target height</label><div style="display:flex;gap:6px"><input id="rh" type="number" inputmode="decimal" step="any" value="1500" oninput="rr()"><select id="rhu" style="width:auto" onchange="rr()"><option>m</option><option>cm</option><option selected>mm</option></select></div></div>
+<div><label>Target width</label><div style="display:flex;gap:6px"><input id="rw" type="number" inputmode="decimal" step="any" value="500" oninput="rr()"><select id="rwu" style="width:auto" onchange="rr()"><option>m</option><option>cm</option><option selected>mm</option></select></div></div></div>
+<div class="row"><span>Reticle zoom</span><button class="pm" onclick="zs(-2)">&minus;</button><input type="range" id="rs" min="0" max="240" step="0.5" value="140" oninput="rr()"><button class="pm" onclick="zs(2)">+</button></div>
+<div id="rd">–</div><div id="rm" class="note" style="text-align:center"></div>
+<p class="note">Fill in the target size (either or both). Drag the picture to move the reticle; drag the slider, pinch or scroll to scale it until the reticle marks span the box as you saw the target in your scope. Dashed outline = dimension not entered.</p>
+<button id="ru" onclick="ruse()">Use as target range</button></div>
+<div id="hint" class="nr"></div><div id="warn" class="nr"></div>
+<div class="row nr"><span>Range <b id="rv">300.0</b> m</span><button class="pm" onclick="stp(-25)">&minus;</button><input type="range" id="sl" min="100" max="1000" step="25" value="300" oninput="sel()"><button class="pm" onclick="stp(25)">+</button></div>
+<div class="row nr"><span>Zoom <b id="magv">8.0</b>x</span><input type="range" id="mag" min="1" max="8" step="0.1" value="8" oninput="sel()"></div>
+<label class="ck so nr" style="margin:8px 0 0"><input type="checkbox" id="qsp" checked onchange="qs()"> Spin drift correction</label>
+<div class="row nr"><span>Target speed <b id="tsv">0.0</b> m/s</span><input type="range" id="tspd" min="0" max="8" step="0.5" value="0" oninput="sel()"></div>
+<div class="row so nr"><span>Wind <b id="qwv">0.0 m/s</b></span><input type="range" id="qws" min="0" max="15" step="0.5" value="0" oninput="qw()"><select id="qwd" style="width:auto" onchange="qw()"></select></div>
+<div class="row ao nr"><span>Display zoom</span><input type="range" id="zm" min="4" max="64" step="1" value="16" oninput="sel()"></div>
+<div class="cards ao nr"><div class="card"><span>Drop</span><b id="s1"></b></div><div class="card"><span id="l2">Hold</span><b id="s2"></b></div><div class="card"><span>Wind / spin drift</span><b id="s3"></b></div>
 <div class="card"><span>Velocity</span><b id="s4"></b></div><div class="card"><span>Energy</span><b id="s5"></b></div><div class="card"><span>Time</span><b id="s6"></b></div></div>
-<p class="note" id="sum"></p></div></div>
+<p class="note nr" id="sum"></p></div></div>
 <div class="panel" id="rc"><h2>Range card</h2><button class="s" style="width:auto;padding:6px 12px;margin:0 0 8px" onclick="document.getElementById('rt').classList.toggle('lite')">More / fewer columns</button><div class="tw"><table id="rt"><thead><tr><th>Range m</th><th>Drop cm</th><th id="th">Hold mil</th><th>Wind drift cm</th><th>Spin drift cm</th><th>Drift hold mil</th><th>Vel m/s</th><th>Energy J</th><th>Time ms</th></tr></thead><tbody id="tb"></tbody></table></div>
-<p class="note" id="info"></p>
+<p class="note" id="info"></p><canvas id="sc"></canvas>
 <p class="note">Drop: − = below line of sight. Drift: + = right (spin drift assumes right-hand twist). Hold / drift hold: + = up / right (aim point relative to target). Amber velocity = transonic (&lt;1.2 Mach), red = subsonic. Zero is solved in the current atmosphere with no wind.</p></div>
 </div></div>
+<div id="dope"></div>
 <script>
 const $=id=>document.getElementById(id),n=id=>{const v=parseFloat($(id).value);return isNaN(v)?null:v},f1=x=>x.toFixed(1);
 // Standard drag tables (Cd vs Mach), linearly interpolated. Replace with full JBM/Applied Ballistics tables for max precision.
 const G7=[[0,.1198],[.5,.1194],[.6,.1194],[.7,.1202],[.75,.1215],[.8,.1242],[.85,.1306],[.9,.1464],[.925,.166],[.95,.2054],[.975,.2993],[1,.3803],[1.05,.4043],[1.1,.4014],[1.15,.3955],[1.2,.3884],[1.3,.3732],[1.4,.358],[1.5,.344],[1.6,.3315],[1.7,.3209],[1.8,.3117],[1.9,.3042],[2,.298],[2.2,.2864],[2.4,.2752],[2.6,.2643],[2.8,.2533],[3,.2424],[3.5,.2154],[4,.1935],[5,.1618]];
 const G1=[[0,.2629],[.2,.2344],[.4,.2104],[.5,.2032],[.6,.2034],[.7,.2165],[.8,.2546],[.85,.2901],[.9,.3415],[.95,.4084],[1,.4805],[1.05,.5427],[1.1,.5883],[1.2,.6393],[1.3,.6589],[1.4,.6625],[1.5,.6573],[1.6,.6474],[1.8,.621],[2,.5934],[2.2,.5685],[2.4,.5481],[2.6,.5325],[2.8,.5211],[3,.5133],[4,.5006],[5,.4988]];
-const PR={rifle:{r762:{barrel:411,twist:10}},ammo:{scenar:{wt:12,dia:7.82,mv:755,bc7:.242,bc1:.482,len:33.1}},optic:{vcog:{hob:45,zero:300,zo:true,mag:8,mmin:1,mmax:8,fov1:364,fovm:43.7},mrad:{hob:45,zero:100,zo:false,mag:10,mmin:5,mmax:25,fov1:72.8,fovm:14.6}}};
+const PR={rifle:{r762:{barrel:411,twist:10}},ammo:{scenar:{wt:12,dia:7.82,mv:755,bc7:.242,bc1:.482,len:33.1,mvb:660}},optic:{vcog:{hob:45,zero:300,zo:true,mag:8,mmin:1,mmax:8,fov1:364,fovm:43.7},mrad:{hob:45,zero:100,zo:false,mag:10,mmin:5,mmax:25,fov1:72.8,fovm:14.6}}};
 function pre(k){const p=PR[k][$(k).value];if(p){if(p.mmax){$('mag').min=p.mmin;$('mag').max=p.mmax}for(const i in p){const e=$(i);if(!e)continue;e.type=='checkbox'?e.checked=p[i]:e.value=p[i]}}run()}
 const cdf=(t,m)=>{if(m<=t[0][0])return t[0][1];for(let i=1;i<t.length;i++)if(m<=t[i][0]){const a=t[i-1],b=t[i];return a[1]+(b[1]-a[1])*(m-a[0])/(b[0]-a[0])}return t[t.length-1][1]};
 function fly(P,ang,rs){let x=0,y=-P.hob,z=0,vx=P.mv*Math.cos(ang),vy=P.mv*Math.sin(ang),vz=0,t=0,i=0;const o=[],dt=.0005;
@@ -117,66 +141,132 @@ const RPM=11,RCX=205,RCY=173,AIM=.24,TH=3; // reticle image: 11 px per mil, cent
 // Correction modules: each returns {dy,dz} in metres (+y up, +z right) for a point on the trajectory. Add Coriolis etc. here later.
 const CORR=[{name:'spin',fn:(o,r,Q)=>({dz:Q.on?.0254*1.25*(Q.sg+1.2)*Math.pow(o.t,1.83):0})}
  /* ,{name:'coriolis',fn:(o,r,Q)=>({dy:0,dz:0})} */];
+const hd=x=>Math.abs(x).toFixed(2)+' mil'+(Math.abs(x)<.005?'':x>=0?' right':' left'),hs=x=>Math.abs(x).toFixed(2)+(Math.abs(x)<.005?'':x>=0?' R':' L');
+function atm(T,Pr,RH){const TK=T+273.15,pv=RH*6.1078*Math.pow(10,7.5*T/(T+237.3));return{rho:(Pr-pv)*100/(287.058*TK)+pv*100/(461.495*TK),c:20.0468*Math.sqrt(TK)}}
 function run(){
-const d=n('dia')||7.82,dIn=d/25.4,wt=n('wt')||12,gr=wt/.06479891,bar=n('barrel')||411,E={},sdv=gr/7000/(dIn*dIn);
-let mv=n('mv');if(mv==null){mv=840-1.97*(gr-147)-.295*(610-bar);E.mv=1;$('mv').placeholder=f1(mv)}
+const d=n('dia')||7.82,dIn=d/25.4,wt=n('wt')||12,gr=wt/.06479891,bar=n('barrel')||411,E={},sdv=gr/7000/(dIn*dIn),wn=[];
+const T=n('temp')??15,alt=n('alt')||0,RH=(n('hum')??50)/100;let Pr=n('press');if(Pr==null)Pr=1013.25*Math.pow(1-2.25577e-5*alt,5.25588);
+const zT=n('ztemp')??T,zP=n('zpress')??Pr,mvt=n('mvt')||0;
+let mv=n('mv'),note='factory';
+if(mv==null){mv=840-1.97*(gr-147)-.295*(610-bar);E.mv=1;$('mv').placeholder=f1(mv);note='estimated'}
+else if($('mvk').checked&&n('mvb')){const a=-(n('mvb')-bar)*(n('mvs')??30)/100;mv+=a;E.adj=1;note=`${f1(a)} m/s for ${f1(bar)} vs ${f1(n('mvb'))} mm barrel`}
+const mc=n('mvc');if(mc){mv=mc;E.adj=0;note='measured'}
 let b7=n('bc7'),b1=n('bc1'),tab,bc;
 if(b7){tab=G7;bc=b7}else if(b1){tab=G1;bc=b1}else{bc=sdv/1.15;tab=G7;E.bc7=1;$('bc7').placeholder=bc.toFixed(3)}
 let len=n('len');if(len==null){len=15.6*sdv*d;E.len=1;$('len').placeholder=f1(len)}
-['mv','bc7','len'].forEach(k=>$('e_'+k).style.display=E[k]?'inline-block':'none');
-const T=n('temp')??15,alt=n('alt')||0,RH=(n('hum')??50)/100;let Pr=n('press');if(Pr==null)Pr=1013.25*Math.pow(1-2.25577e-5*alt,5.25588);
-const TK=T+273.15,pv=RH*6.1078*Math.pow(10,7.5*T/(T+237.3)),rho=(Pr-pv)*100/(287.058*TK)+pv*100/(461.495*TK),c=20.0468*Math.sqrt(TK);
-const W=n('wspd')||0,th=(+$('wdir').value)*Math.PI/6;$('qws').value=W;$('qwd').value=$('wdir').value;$('qwv').textContent=f1(W)+' m/s';
-const P={mv,hob:(n('hob')??45)/1000,c,tab,K:Math.PI/8*rho/(bc*703.0696),wx:-W*Math.cos(th),wz:-W*Math.sin(th)};
-const zr=n('zero')||300,P0={...P,wx:0,wz:0};let lo=-.02,hi=.15,ang=0;
+$('e_mv').style.display=(E.mv||E.adj)?'inline-block':'none';$('e_mv').textContent=E.mv?'EST':'ADJ';
+['bc7','len'].forEach(k=>$('e_'+k).style.display=E[k]?'inline-block':'none');
+const A=atm(T,Pr,RH),A0=atm(zT,zP,RH),W=n('wspd')||0,th=(+$('wdir').value)*Math.PI/6;
+$('qws').value=W;$('qwd').value=$('wdir').value;$('qwv').textContent=f1(W)+' m/s';$('qsp').checked=$('spin').checked;
+const hob=(n('hob')??45)/1000,KK=a=>Math.PI/8*a.rho/(bc*703.0696),
+P={mv:mv+mvt*(T-15),hob,c:A.c,tab,K:KK(A),wx:-W*Math.cos(th),wz:-W*Math.sin(th)},P0={mv:mv+mvt*(zT-15),hob,c:A0.c,tab,K:KK(A0),wx:0,wz:0};
+const zr=n('zero')||300;let lo=-.02,hi=.15,ang=0;
 for(let i=0;i<45;i++){ang=(lo+hi)/2;const o=fly(P0,ang,[zr])[0];if(o&&o.y<0)lo=ang;else hi=ang}
-const rs=[];for(let r=25;r<=800;r+=25)rs.push(r);
-const out=fly(P,ang,rs);
-// Miller stability + Litz spin drift
-const tw=(n('twist')||10)/dIn,lc=len/d,Tf=T*1.8+32,sg0=30*gr/(tw**3*dIn**3*lc*(1+lc*lc))*Math.cbrt(mv*3.28084/2800)*((Tf+460)/519)*(29.92/(Pr/33.8639));
-const useSpin=$('spin').checked&&sg0>1,Q={sg:sg0,on:useSpin};
-$('info').textContent=`Drag model: ${tab===G7?'G7':'G1'} BC ${bc.toFixed(3)} · MV ${f1(mv)} m/s · air density ${rho.toFixed(3)} kg/m³ · speed of sound ${f1(c)} m/s · launch angle ${f1(ang*1000)} mil · stability Sg ${sg0.toFixed(2)}${sg0<=1?' (UNSTABLE: spin drift off)':''}`;
+const rs=[];for(let r=25;r<=1000;r+=25)rs.push(r);
+const out=fly(P,ang,rs),o1=fly({...P,wx:0,wz:-1},ang,rs);
+// Miller stability (twist in calibers per turn, SQUARED) + Litz spin drift
+const tw=(n('twist')||10)/dIn,lc=len/d,Tf=T*1.8+32,sg0=30*gr/(tw*tw*dIn**3*lc*(1+lc*lc))*Math.cbrt(P.mv*3.28084/2800)*((Tf+460)/519)*(29.92/(Pr/33.8639));
+const want=$('spin').checked,on=want&&sg0>1,altOn=sg0>1&&!want;
+const corr=(o,r,f)=>{let dy=0,dz=0,spin=0;CORR.forEach(c=>{const q=c.fn(o,r,{sg:sg0,on:f});dy+=q.dy||0;dz+=q.dz||0;if(c.name==='spin')spin=q.dz||0});return{dy,dz,spin}};
+if(sg0<1)wn.push(`Bullet unstable at this twist (Sg ${sg0.toFixed(2)}) – spin drift off`);else if(sg0<1.3)wn.push(`Marginal stability (Sg ${sg0.toFixed(2)}) – cold or high altitude may reduce accuracy`);
+if(zr<25||zr>1000)wn.push('Zero distance outside 25–1000 m');if(bc<.05||bc>.9)wn.push('BC looks unusual');if(P.mv<200||P.mv>1200)wn.push('Muzzle velocity looks unusual');if(hob*1000<10||hob*1000>150)wn.push('Height over bore looks unusual');
+if(out.some(o=>!o))wn.push('Bullet does not reach the full 1000 m');
+$('info').textContent=`Drag model: ${tab===G7?'G7':'G1'} BC ${bc.toFixed(3)} · MV ${f1(P.mv)} m/s (${note}) · air density ${A.rho.toFixed(3)} kg/m³ · speed of sound ${f1(A.c)} m/s · launch angle ${f1(ang*1000)} mil · stability Sg ${sg0.toFixed(2)}`;
 $('sum').textContent=[$('rifle'),$('ammo'),$('optic')].map(e=>e.selectedOptions[0].text.split(' (')[0]).join(' · ')+` · zero ${f1(zr)} m · ${f1(T)} °C`;
-S={zo:$('zo').checked};D=[];let h='';
-out.forEach((o,i)=>{if(!o)return;const r=rs[i];let dy=0,dz=0,spin=0;
-CORR.forEach(c=>{const q=c.fn(o,r,Q);dy+=q.dy||0;dz+=q.dz||0;if(c.name==='spin')spin=q.dz||0});
-const y=o.y+dy,z=o.z+dz,
-row={r,drop:y*100,hold:Math.atan(-y/r)*1000,wind:(o.z+(dz-spin))*100,spin:spin*100,drift:z*100,wh:-z/r*1000,v:o.v,e:.5*wt/1000*o.v*o.v,t:o.t*1000};D.push(row);
-h+=`<tr data-r="${r}" class="${o.v<c?'ss':o.v<1.2*c?'tn':''}"><td>${f1(r)}</td><td>${f1(row.drop)}</td><td>${f1(row.hold)}</td><td>${f1(row.wind)}</td><td>${f1(row.spin)}</td><td>${f1(row.wh)}</td><td>${f1(row.v)}</td><td>${f1(row.e)}</td><td>${f1(row.t)}</td></tr>`});
+S={zo:$('zo').checked,spinOn:on,warn:wn,c:A.c,cond:`${f1(T)} °C · ${f1(Pr)} hPa · MV ${f1(P.mv)} m/s · zero ${f1(zr)} m · wind ${f1(W)} m/s`};D=[];let h='';
+out.forEach((o,i)=>{if(!o)return;const r=rs[i],a=corr(o,r,on),b=corr(o,r,altOn),sf=corr(o,r,sg0>1).spin,y=o.y+a.dy,z=o.z+a.dz,
+row={r,drop:y*100,hold:Math.atan(-y/r)*1000,wind:(o.z+a.dz-a.spin)*100,spin:a.spin*100,drift:z*100,wh:-z/r*1000,whAlt:-(o.z+b.dz)/r*1000,wmil:-(o.z+a.dz-a.spin)/r*1000,smil:-a.spin/r*1000,sfull:sf*100,w1:Math.abs(o1[i]?o1[i].z:0)/r*1000,v:o.v,e:.5*wt/1000*o.v*o.v,t:o.t*1000};D.push(row);
+h+=`<tr data-r="${r}" class="${o.v<A.c?'ss':o.v<1.2*A.c?'tn':''}"><td>${f1(r)}</td><td>${f1(row.drop)}</td><td>${row.hold.toFixed(2)}</td><td>${f1(row.wind)}</td><td>${f1(row.spin)}</td><td>${row.wh.toFixed(2)}</td><td>${f1(row.v)}</td><td>${f1(row.e)}</td><td>${f1(row.t)}</td></tr>`});
 $('tb').innerHTML=h;$('th').textContent=S.zo?'Holdover mil':'Dial-up mil';$('l2').textContent=S.zo?'Holdover':'Dial up';sel()}
+function qs(){$('spin').checked=$('qsp').checked;run()}
+function drawSC(r0){const c=$('sc');if(!c||!D.length||!c.offsetParent)return;const X=c.getContext('2d'),cw=c.clientWidth||400,ch=150,dpr=window.devicePixelRatio||1;c.width=cw*dpr;c.height=ch*dpr;X.setTransform(dpr,0,0,dpr,0,0);
+const mx=Math.max(...D.map(d=>Math.abs(d.sfull)),1),L=36,B=22,T=16,R=10,x=r=>L+(r-D[0].r)/(D[D.length-1].r-D[0].r)*(cw-L-R),y=v=>ch-B-v/mx*(ch-B-T);
+X.fillStyle='#0f1317';X.fillRect(0,0,cw,ch);X.strokeStyle='#2c3844';X.lineWidth=1;X.fillStyle='#9ca3af';X.font='10px sans-serif';
+for(let r=200;r<=1000;r+=200){X.beginPath();X.moveTo(x(r),T);X.lineTo(x(r),ch-B);X.stroke();X.fillText(r,x(r)-10,ch-8)}
+[0,.5,1].forEach(f=>{const v=mx*f;X.beginPath();X.moveTo(L,y(v));X.lineTo(cw-R,y(v));X.stroke();X.fillText(v.toFixed(0),4,y(v)+3)});
+X.strokeStyle='#d97706';X.lineWidth=2;X.beginPath();D.forEach((d,i)=>{const px=x(d.r),py=y(Math.abs(d.sfull));i?X.lineTo(px,py):X.moveTo(px,py)});X.stroke();
+const s=D.find(d=>d.r===r0);if(s){X.fillStyle='#fbbf24';X.beginPath();X.arc(x(s.r),y(Math.abs(s.sfull)),4,0,7);X.fill()}
+X.fillStyle='#9ca3af';X.fillText('Spin drift (cm) vs range (m)',L+4,T-4)}
+function dopeCard(){if(!D.length)return;const rows=D.filter(d=>d.r%100===0).map(d=>`<tr><td>${f1(d.r)}</td><td>${Math.abs(d.hold).toFixed(2)} ${d.hold>=-.005?'up':'down'}</td><td>${hs(d.wh)}</td><td>${d.w1.toFixed(2)}</td><td>${f1(d.v)}</td><td>${f1(d.t/1000)}</td></tr>`).join('');
+$('dope').innerHTML=`<h3>Dope card</h3><p>${$('sum').textContent}</p><p>${S.cond}</p><table><thead><tr><th>Range m</th><th>${S.zo?'Hold':'Dial'} mil</th><th>Drift hold mil</th><th>1 m/s wind mil</th><th>Vel m/s</th><th>TOF s</th></tr></thead><tbody>${rows}</tbody></table><p>Drift hold = direction to aim (R/L), ${S.spinOn?'wind and spin drift included':'wind only, spin drift OFF'}. Multiply the 1 m/s column by the wind speed.</p>`;
+document.body.classList.add('dope');window.print()}
+addEventListener('afterprint',()=>document.body.classList.remove('dope'));
+const IDS=['rifle','ammo','optic','barrel','twist','wt','dia','mv','len','bc7','bc1','mvk','mvb','mvs','mvc','mvt','hob','zero','zo','fov1','fovm','temp','press','hum','alt','ztemp','zpress','wspd','wdir','spin','sl','mag','tspd','rh','rhu','rw','rwu'];
+function share(){const o={};IDS.forEach(id=>{const e=$(id);o[id]=e.type==='checkbox'?(e.checked?1:0):e.value});const u=location.origin+location.pathname+'#'+new URLSearchParams(o);
+if(navigator.clipboard)navigator.clipboard.writeText(u).then(()=>alert('Link copied'),()=>prompt('Copy this link',u));else prompt('Copy this link',u)}
 function sel(){const r=+$('sl').value;$('magv').textContent=f1(+$('mag').value);$('rv').textContent=f1(r);const w=D.find(x=>x.r===r);if(!w)return;
 document.querySelectorAll('#tb tr').forEach(t=>t.classList.toggle('sel',+t.dataset.r===r));
-$('s1').textContent=f1(w.drop)+' cm';$('s2').textContent=f1(w.hold)+' mil';$('s3').textContent=f1(w.wind)+' / '+f1(w.spin)+' cm';$('s4').textContent=f1(w.v)+' m/s';$('s5').textContent=f1(w.e)+' J';$('s6').textContent=f1(w.t)+' ms';
-const side=w.wh>=0?'right':'left',vs=w.hold>=0?'up':'down';
-$('hint').innerHTML=`<div>${S.zo?'Vertical hold':'Vertical dial'}: ${f1(Math.abs(w.hold))} mil ${vs}</div><div>Horizontal hold: ${f1(Math.abs(w.wh))} mil ${side}</div><div>Time of flight: ${f1(w.t/1000)} s</div>`;
-$('vt').textContent=(S.zo?'VCOG sight picture':'Sight picture')+' – '+f1(r)+' m';draw(w)}
-function draw(w){const c=$('cv'),X=c.getContext('2d'),Wd=460,dpr=window.devicePixelRatio||1,cw=c.clientWidth||Wd,k=cw*dpr/Wd;c.width=c.height=Math.round(cw*dpr);X.setTransform(k,0,0,k,0,0);
+$('s1').textContent=f1(w.drop)+' cm';$('s2').textContent=w.hold.toFixed(2)+' mil';$('s3').textContent=f1(w.wind)+' / '+f1(w.spin)+' cm';$('s4').textContent=f1(w.v)+' m/s';$('s5').textContent=f1(w.e)+' J';$('s6').textContent=f1(w.t)+' ms';
+const vs=w.hold>=-.005?'up':'down',ls=+$('tspd').value||0,M=w.v/S.c;$('tsv').textContent=f1(ls);
+$('hint').innerHTML=`<div>${S.zo?'Vertical hold':'Vertical dial'}: ${Math.abs(w.hold).toFixed(2)} mil ${vs}</div><div>Horizontal hold: ${hd(w.wh)}</div><div class="sm">wind ${hs(w.wmil)} · spin ${hs(w.smil)} (spin drift ${S.spinOn?'ON':'OFF'})</div><div>Time of flight: ${f1(w.t/1000)} s</div>${ls>0?`<div>Lead: ${(ls*w.t/w.r).toFixed(2)} mil (target ${f1(ls)} m/s, full crossing)</div>`:''}<div class="sm">1 m/s crosswind = ${w.w1.toFixed(2)} mil</div>`;
+$('warn').innerHTML=S.warn.concat(M<1?['Subsonic at '+f1(r)+' m – predictions unreliable']:M<1.2?['Transonic at '+f1(r)+' m (Mach '+M.toFixed(2)+') – less reliable']:[]).join('<br>');
+$('vt').textContent=(S.zo?'VCOG sight picture':'Sight picture')+' – '+f1(r)+' m';draw(w);drawSC(r)}
+function draw(w){if(RG.on)return drawR();const c=$('cv'),X=c.getContext('2d'),Wd=460,dpr=window.devicePixelRatio||1,cw=c.clientWidth||Wd,k=cw*dpr/Wd;c.width=c.height=Math.round(cw*dpr);X.setTransform(k,0,0,k,0,0);
 const mag=+$('mag').value||1,mn=+$('mag').min||1,mxm=+$('mag').max||8,f1m=+$('fov1').value||364,fmm=+$('fovm').value||43.7,fov=(mxm>mn?f1m*mn+(fmm*mxm-f1m*mn)*(mag-mn)/(mxm-mn):f1m*mn)/mag,zm=440/fov*(+$('zm').value/16),cx=Wd/2,cy=Wd/2,hu=S.zo?w.hold:0,
 mx=cx-w.wh*zm,my=cy+hu*zm,tw=.5/w.r*1000*zm,th=TH*tw; // FFP: reticle keeps its mil size; field of view in mil = FOV1/mag
 X.fillStyle='#0b0f12';X.fillRect(0,0,Wd,Wd);X.save();X.beginPath();X.arc(cx,cy,220,0,7);X.clip();X.fillStyle='#cfd6da';X.fillRect(0,0,Wd,Wd);
 if(IM.t)X.drawImage(IM.t,mx-tw/2,my-AIM*th,tw,th);
+const gx=cx-w.whAlt*zm,gh=Math.abs(gx-mx)>3;if(gh){X.save();X.setLineDash([5,3]);X.strokeStyle='#d97706';X.lineWidth=1.5;X.strokeRect(gx-tw/2,my-AIM*th,tw,th);X.restore()}
 X.strokeStyle='#fff';X.fillStyle='#10b981';X.lineWidth=1;X.beginPath();X.arc(mx,my,2.5,0,7);X.fill();X.stroke();
 if(IM.r){const s=zm/RPM;X.save();X.shadowColor='rgba(255,255,255,.95)';X.shadowBlur=2;X.drawImage(IM.r,cx-RCX*s,cy-RCY*s,IM.r.width*s,IM.r.height*s);X.restore()}
-if(S.zo&&hu>0){X.strokeStyle=X.fillStyle='#d97706';X.lineWidth=2;X.beginPath();X.moveTo(cx-16,my);X.lineTo(cx+16,my);X.stroke();X.font='bold 11px sans-serif';X.fillText(f1(hu)+' mil',cx+20,my-4)}
+if(S.zo&&hu>0){X.strokeStyle=X.fillStyle='#d97706';X.lineWidth=2;X.beginPath();X.moveTo(cx-16,my);X.lineTo(cx+16,my);X.stroke();X.font='bold 11px sans-serif';X.fillText(hu.toFixed(2)+' mil',cx+20,my-4)}
 X.restore();X.strokeStyle='#333';X.lineWidth=3;X.beginPath();X.arc(cx,cy,220,0,7);X.stroke();
 X.fillStyle='#9ca3af';X.font='11px sans-serif';X.fillText(`${f1(mag)}x · FOV ${f1(fov)} mil (${f1(fov*w.r/1000)} m at ${f1(w.r)} m)`,8,14);
-X.fillText(`target 500 x 1500 mm = ${f1(.5/w.r*1000)} x ${f1(1.5/w.r*1000)} mil`,8,Wd-8)}
+X.fillText(`target 500 x 1500 mm = ${f1(.5/w.r*1000)} x ${f1(1.5/w.r*1000)} mil`,8,Wd-8);
+if(gh)X.fillText('dashed = target position '+(S.spinOn?'without':'with')+' spin drift',8,Wd-22)}
 function ld(k,s){const i=new Image();i.onload=()=>{IM[k]=i;sel()};i.src=s}
 function up(k,e){const f=e.files[0];if(f)ld(k,URL.createObjectURL(f))}
-function csv(){let s='Range m,Drop cm,Hold mil,Drift cm,Wind hold mil,Velocity m/s,Energy J,Time ms\n';D.forEach(r=>s+=[r.r,r.drop,r.hold,r.drift,r.wh,r.v,r.e,r.t].map(f1).join(',')+'\n');
+function csv(){let s='Range m,Drop cm,Hold mil,Drift cm,Wind hold mil,Velocity m/s,Energy J,Time ms\n';D.forEach(r=>s+=[f1(r.r),f1(r.drop),r.hold.toFixed(2),f1(r.drift),r.wh.toFixed(2),f1(r.v),f1(r.e),f1(r.t)].join(',')+'\n');
 const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([s],{type:'text/csv'}));a.download='range-card.csv';a.click()}
-document.querySelectorAll('.panel input:not([type=file]):not(#rmil),.panel select:not(#rifle):not(#ammo):not(#optic)').forEach(e=>{if(!['sl','zm','mag','fov1','fovm','qws','qwd'].includes(e.id))e.addEventListener('input',run)});
+document.querySelectorAll('.panel input:not([type=file]):not(#rmil),.panel select:not(#rifle):not(#ammo):not(#optic)').forEach(e=>{if(!['sl','zm','mag','fov1','fovm','qws','qwd','rs','rh','rw','rhu','rwu','tspd','qsp'].includes(e.id))e.addEventListener('input',run)});
 ld('t',TGT);ld('r',RET);
 function stp(d){const e=$('sl');e.value=Math.min(+e.max,Math.max(+e.min,+e.value+d));sel()}
 function qw(){$('wspd').value=$('qws').value;$('wdir').value=$('qwd').value;run()}
 function setView(v){document.body.classList.toggle('simple',v==='simple');$('vb').textContent=v==='simple'?'Advanced':'Simple view';try{localStorage.setItem('view',v)}catch(e){}if(D.length)sel()}
 function tv(){setView(document.body.classList.contains('simple')?'adv':'simple')}
 $('qwd').innerHTML=$('wdir').innerHTML;
+// ---- Ranging mode: box of known size vs. scalable reticle -> distance = size / mil ----
+const RG={on:false,z:140,ox:0,oy:0,q:null},cl=(v,a,b)=>Math.min(b,Math.max(a,v));
+function tr(){RG.on=!RG.on;document.body.classList.toggle('rng',RG.on);$('rb').classList.toggle('on',RG.on);if(RG.on)rr();else if(D.length)sel()}
+function zs(d){$('rs').value=cl(+$('rs').value+d,0,240);rr()}
+function rr(){const U={m:1,cm:.01,mm:.001},h=(parseFloat($('rh').value)||0)*U[$('rhu').value],w=(parseFloat($('rw').value)||0)*U[$('rwu').value];
+RG.z=+$('rs').value;const pm=4*Math.pow(10,RG.z/100),q={pm,h,w};
+if(h>0||w>0){const bh=h>0?h:w,bw=w>0?w:h,k=300/Math.max(bh,bw);q.Hpx=bh*k;q.Wpx=bw*k;
+const pM=h>0?h:w,pPx=h>0?q.Hpx:q.Wpx;q.dist=pM*1000/(pPx/pm);const mh=q.Hpx/pm,mw=q.Wpx/pm;
+$('rd').textContent=f1(q.dist)+' m';$('rm').textContent=(h>0?'Height '+f1(mh)+' mil':'')+(h>0&&w>0?' · ':'')+(w>0?'Width '+f1(mw)+' mil':'');
+q.r=cl(Math.round(q.dist/25)*25,100,1000);$('ru').textContent='Use '+q.r+' m as target range'+(q.dist<100||q.dist>1000?' (nearest on slider)':'')}
+else{$('rd').textContent='–';$('rm').textContent='Enter height and/or width';$('ru').textContent='Use as target range'}
+RG.q=q;drawR()}
+function ruse(){if(RG.q&&RG.q.r){$('sl').value=RG.q.r;tr()}}
+function drawR(){const c=$('cv'),X=c.getContext('2d'),Wd=460,dpr=window.devicePixelRatio||1,cw=c.clientWidth||Wd,k=cw*dpr/Wd;c.width=c.height=Math.round(cw*dpr);X.setTransform(k,0,0,k,0,0);
+const cx=Wd/2,cy=Wd/2,q=RG.q||{pm:100};X.fillStyle='#0b0f12';X.fillRect(0,0,Wd,Wd);X.save();X.beginPath();X.arc(cx,cy,220,0,7);X.clip();X.fillStyle='#cfd6da';X.fillRect(0,0,Wd,Wd);
+if(q.Hpx){const x=cx-q.Wpx/2,y=cy-q.Hpx/2;X.fillStyle='rgba(217,119,6,.45)';X.fillRect(x,y,q.Wpx,q.Hpx);X.strokeStyle='#92400e';X.lineWidth=2;if(!(q.h>0&&q.w>0))X.setLineDash([6,4]);X.strokeRect(x,y,q.Wpx,q.Hpx);X.setLineDash([])}
+// vector VCOG MRAD reticle (1 mil ticks, long every 5 mil, 4 red ring segments), true to mil scale
+const p=q.pm,ox=cx+RG.ox,oy=cy+RG.oy;X.fillStyle='#e63b1f';
+for(let a=45;a<360;a+=90){const A=(a-25)*Math.PI/180,B=(a+25)*Math.PI/180;X.beginPath();X.arc(ox,oy,10.4*p,A,B);X.arc(ox,oy,8.2*p,B,A,true);X.closePath();X.fill()}
+X.strokeStyle='#111';X.fillStyle='#111';X.lineWidth=1.3;X.beginPath();X.moveTo(ox-19.4*p,oy);X.lineTo(ox+19.4*p,oy);X.moveTo(ox,oy-16*p);X.lineTo(ox,oy+16*p);
+for(let m=1;m<=19;m++){const l=(m%5?.36:.9)*p;for(const s of[-1,1]){X.moveTo(ox+s*m*p,oy-l);X.lineTo(ox+s*m*p,oy+l);if(m<=16){X.moveTo(ox-l,oy+s*m*p);X.lineTo(ox+l,oy+s*m*p)}}}
+X.stroke();X.font='11px sans-serif';[5,10,15].forEach(m=>X.fillText(m,ox+1.2*p+3,oy+m*p+4));
+X.strokeStyle='#e63b1f';X.lineWidth=1.5;X.beginPath();X.moveTo(ox-Math.max(.25*p,3),oy);X.lineTo(ox+Math.max(.25*p,3),oy);X.moveTo(ox,oy-Math.max(.25*p,3));X.lineTo(ox,oy+Math.max(.25*p,3));X.stroke();
+X.restore();X.strokeStyle='#333';X.lineWidth=3;X.beginPath();X.arc(cx,cy,220,0,7);X.stroke();
+X.fillStyle='#9ca3af';X.font='11px sans-serif';X.fillText(`Ranging · box ${q.h>0?$('rh').value+' '+$('rhu').value:'–'} high × ${q.w>0?$('rw').value+' '+$('rwu').value:'–'} wide`,8,14)}
+{const cv=$('cv'),PT=new Map();let pd=0;const pdist=()=>{const v=[...PT.values()];return v.length<2?0:Math.hypot(v[0][0]-v[1][0],v[0][1]-v[1][1])},
+zset=z=>{$('rs').value=cl(z,0,240)};
+cv.addEventListener('pointerdown',e=>{if(!RG.on)return;try{cv.setPointerCapture(e.pointerId)}catch(x){}PT.set(e.pointerId,[e.clientX,e.clientY]);pd=pdist()});
+cv.addEventListener('pointermove',e=>{if(!RG.on||!PT.has(e.pointerId))return;const o=PT.get(e.pointerId),sc=460/(cv.clientWidth||460);PT.set(e.pointerId,[e.clientX,e.clientY]);
+if(PT.size===1){RG.ox=cl(RG.ox+(e.clientX-o[0])*sc,-220,220);RG.oy=cl(RG.oy+(e.clientY-o[1])*sc,-220,220)}
+else if(PT.size===2){const d=pdist();if(pd&&d)zset(RG.z+100*Math.log10(d/pd));pd=d}rr()});
+['pointerup','pointercancel'].forEach(t=>cv.addEventListener(t,e=>{PT.delete(e.pointerId);pd=0}));
+cv.addEventListener('wheel',e=>{if(!RG.on)return;e.preventDefault();zset(RG.z-Math.sign(e.deltaY)*6);rr()},{passive:false});
+cv.addEventListener('dblclick',()=>{if(RG.on){RG.ox=RG.oy=0;rr()}})}
 let view=null;try{view=localStorage.getItem('view')}catch(e){}
 if(!view)view=(matchMedia('(pointer:coarse)').matches||innerWidth<992)?'simple':'adv';
 if(innerWidth<700)$('rt').classList.add('lite');
 document.querySelectorAll('#adv details').forEach(d=>d.open=innerWidth>=700);
 addEventListener('resize',()=>{if(D.length)sel()});
+if(location.hash.length>1){const p=new URLSearchParams(location.hash.slice(1)),op=PR.optic[p.get('optic')];if(op){$('mag').min=op.mmin;$('mag').max=op.mmax}
+p.forEach((v,k)=>{const e=$(k);if(!e||!IDS.includes(k))return;e.type==='checkbox'?e.checked=v==='1':e.value=v})}
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 setView(view);
 run();
 </script></body></html>
