@@ -101,12 +101,14 @@ body.simple #hint{font-size:1.5rem;margin-top:8px}
 <div class="panel vp"><h2 id="vt" class="ao">Sight picture</h2><canvas id="cv"></canvas>
 <div class="vc"><div class="rg"><div class="g" style="margin-bottom:0"><div><label>Target height</label><div style="display:flex;gap:6px"><input id="rh" type="number" inputmode="decimal" step="any" value="1500" oninput="rr()"><select id="rhu" style="width:auto" onchange="rr()"><option>m</option><option>cm</option><option selected>mm</option></select></div></div>
 <div><label>Target width</label><div style="display:flex;gap:6px"><input id="rw" type="number" inputmode="decimal" step="any" value="500" oninput="rr()"><select id="rwu" style="width:auto" onchange="rr()"><option>m</option><option>cm</option><option selected>mm</option></select></div></div></div>
-<div class="row"><span>Reticle zoom</span><button class="pm" onclick="zs(-2)">&minus;</button><input type="range" id="rs" min="0" max="240" step="0.5" value="140" oninput="rr()"><button class="pm" onclick="zs(2)">+</button></div>
+<div class="row"><span>Target spans <b id="rmv">2.51</b> mil</span><button class="pm" onclick="zs(-1)">&minus;</button><input type="range" id="rs" min="-70" max="160" step="0.5" value="40" oninput="rr()"><button class="pm" onclick="zs(1)">+</button></div>
+<div class="row"><span>View zoom</span><input type="range" id="rz" min="0" max="100" step="1" value="45" oninput="rr()"></div>
+<div style="display:flex;gap:8px"><button class="s" style="margin:6px 0 0" onclick="ral('h')">Align to height</button><button class="s" style="margin:6px 0 0" onclick="ral('w')">Align to width</button></div>
 <div id="rd">–</div><div id="rm" class="note" style="text-align:center"></div>
-<p class="note">Fill in the target size (either or both). Drag the picture to move the reticle; drag the slider, pinch or scroll to scale it until the reticle marks span the box as you saw the target in your scope. Dashed outline = dimension not entered.</p>
+<p class="note">The reticle is true to scale (Trijicon VCOG MRAD). 1) Enter the target size. 2) Drag the picture to slide the reticle over the target. 3) Resize the target (slider, + / −, pinch or scroll) until it spans the marks you saw in your scope. The distance updates live.</p>
 <button id="ru" onclick="ruse()">Use as target range</button></div>
-<div id="hint" class="nr"></div><div id="warn" class="nr"></div>
-<div class="row nr"><span>Range <b id="rv">300.0</b> m</span><button class="pm" onclick="stp(-25)">&minus;</button><input type="range" id="sl" min="100" max="1000" step="25" value="300" oninput="sel()"><button class="pm" onclick="stp(25)">+</button></div>
+<div id="hint" class="nr"></div><div id="warn" class="nr"></div><div id="tgchip" class="nr sm" hidden style="text-align:center;margin-top:6px"></div>
+<div class="row nr"><span>Range <b id="rv">300.0</b> m</span><button class="pm" onclick="stp(-25)">&minus;</button><input type="range" id="sl" min="100" max="1000" step="1" value="300" oninput="sel()"><button class="pm" onclick="stp(25)">+</button></div>
 <div class="row nr"><span>Zoom <b id="magv">8.0</b>x</span><input type="range" id="mag" min="1" max="8" step="0.1" value="8" oninput="sel()"></div>
 <label class="ck so nr" style="margin:8px 0 0"><input type="checkbox" id="qsp" checked onchange="qs()"> Spin drift correction</label>
 <div class="row nr"><span>Target speed <b id="tsv">0.0</b> m/s</span><input type="range" id="tspd" min="0" max="8" step="0.5" value="0" oninput="sel()"></div>
@@ -185,7 +187,7 @@ X.fillStyle='#0f1317';X.fillRect(0,0,cw,ch);X.strokeStyle='#2c3844';X.lineWidth=
 for(let r=200;r<=1000;r+=200){X.beginPath();X.moveTo(x(r),T);X.lineTo(x(r),ch-B);X.stroke();X.fillText(r,x(r)-10,ch-8)}
 [0,.5,1].forEach(f=>{const v=mx*f;X.beginPath();X.moveTo(L,y(v));X.lineTo(cw-R,y(v));X.stroke();X.fillText(v.toFixed(0),4,y(v)+3)});
 X.strokeStyle='#d97706';X.lineWidth=2;X.beginPath();D.forEach((d,i)=>{const px=x(d.r),py=y(Math.abs(d.sfull));i?X.lineTo(px,py):X.moveTo(px,py)});X.stroke();
-const s=D.find(d=>d.r===r0);if(s){X.fillStyle='#fbbf24';X.beginPath();X.arc(x(s.r),y(Math.abs(s.sfull)),4,0,7);X.fill()}
+const s=rowAt(r0);if(s){X.fillStyle='#fbbf24';X.beginPath();X.arc(x(s.r),y(Math.abs(s.sfull)),4,0,7);X.fill()}
 X.fillStyle='#9ca3af';X.fillText('Spin drift (cm) vs range (m)',L+4,T-4)}
 function dopeCard(){if(!D.length)return;const rows=D.filter(d=>d.r%100===0).map(d=>`<tr><td>${f1(d.r)}</td><td>${Math.abs(d.hold).toFixed(2)} ${d.hold>=-.005?'up':'down'}</td><td>${hs(d.wh)}</td><td>${d.w1.toFixed(2)}</td><td>${f1(d.v)}</td><td>${f1(d.t/1000)}</td></tr>`).join('');
 $('dope').innerHTML=`<h3>Dope card</h3><p>${$('sum').textContent}</p><p>${S.cond}</p><table><thead><tr><th>Range m</th><th>${S.zo?'Hold':'Dial'} mil</th><th>Drift hold mil</th><th>1 m/s wind mil</th><th>Vel m/s</th><th>TOF s</th></tr></thead><tbody>${rows}</tbody></table><p>Drift hold = direction to aim (R/L), ${S.spinOn?'wind and spin drift included':'wind only, spin drift OFF'}. Multiply the 1 m/s column by the wind speed.</p>`;
@@ -194,8 +196,8 @@ addEventListener('afterprint',()=>document.body.classList.remove('dope'));
 const IDS=['rifle','ammo','optic','barrel','twist','wt','dia','mv','len','bc7','bc1','mvk','mvb','mvs','mvc','mvt','hob','zero','zo','fov1','fovm','temp','press','hum','alt','ztemp','zpress','wspd','wdir','spin','sl','mag','tspd','rh','rhu','rw','rwu'];
 function share(){const o={};IDS.forEach(id=>{const e=$(id);o[id]=e.type==='checkbox'?(e.checked?1:0):e.value});const u=location.origin+location.pathname+'#'+new URLSearchParams(o);
 if(navigator.clipboard)navigator.clipboard.writeText(u).then(()=>alert('Link copied'),()=>prompt('Copy this link',u));else prompt('Copy this link',u)}
-function sel(){const r=+$('sl').value;$('magv').textContent=f1(+$('mag').value);$('rv').textContent=f1(r);const w=D.find(x=>x.r===r);if(!w)return;
-document.querySelectorAll('#tb tr').forEach(t=>t.classList.toggle('sel',+t.dataset.r===r));
+function sel(){const r=+$('sl').value;$('magv').textContent=f1(+$('mag').value);$('rv').textContent=f1(r);const w=rowAt(r);if(!w)return;
+document.querySelectorAll('#tb tr').forEach(t=>t.classList.toggle('sel',+t.dataset.r===Math.round(r/25)*25));
 $('s1').textContent=f1(w.drop)+' cm';$('s2').textContent=w.hold.toFixed(2)+' mil';$('s3').textContent=f1(w.wind)+' / '+f1(w.spin)+' cm';$('s4').textContent=f1(w.v)+' m/s';$('s5').textContent=f1(w.e)+' J';$('s6').textContent=f1(w.t)+' ms';
 const vs=w.hold>=-.005?'up':'down',ls=+$('tspd').value||0,M=w.v/S.c;$('tsv').textContent=f1(ls);
 $('hint').innerHTML=`<div>${S.zo?'Vertical hold':'Vertical dial'}: ${Math.abs(w.hold).toFixed(2)} mil ${vs}</div><div>Horizontal hold: ${hd(w.wh)}</div><div class="sm">wind ${hs(w.wmil)} · spin ${hs(w.smil)} (spin drift ${S.spinOn?'ON':'OFF'})</div><div>Time of flight: ${f1(w.t/1000)} s</div>${ls>0?`<div>Lead: ${(ls*w.t/w.r).toFixed(2)} mil (target ${f1(ls)} m/s, full crossing)</div>`:''}<div class="sm">1 m/s crosswind = ${w.w1.toFixed(2)} mil</div>`;
@@ -203,62 +205,70 @@ $('warn').innerHTML=S.warn.concat(M<1?['Subsonic at '+f1(r)+' m – predictions 
 $('vt').textContent=(S.zo?'VCOG sight picture':'Sight picture')+' – '+f1(r)+' m';draw(w);drawSC(r)}
 function draw(w){if(RG.on)return drawR();const c=$('cv'),X=c.getContext('2d'),Wd=460,dpr=window.devicePixelRatio||1,cw=c.clientWidth||Wd,k=cw*dpr/Wd;c.width=c.height=Math.round(cw*dpr);X.setTransform(k,0,0,k,0,0);
 const mag=+$('mag').value||1,mn=+$('mag').min||1,mxm=+$('mag').max||8,f1m=+$('fov1').value||364,fmm=+$('fovm').value||43.7,fov=(mxm>mn?f1m*mn+(fmm*mxm-f1m*mn)*(mag-mn)/(mxm-mn):f1m*mn)/mag,zm=440/fov*(+$('zm').value/16),cx=Wd/2,cy=Wd/2,hu=S.zo?w.hold:0,
-mx=cx-w.wh*zm,my=cy+hu*zm,tw=.5/w.r*1000*zm,th=TH*tw; // FFP: reticle keeps its mil size; field of view in mil = FOV1/mag
+mx=cx-w.wh*zm,my=cy+hu*zm,tw=(TG.on?TG.w:.5)/w.r*1000*zm,th=(TG.on?TG.h:1.5)/w.r*1000*zm,aim=(TG.on&&Math.abs(TG.h/TG.w-3)>.02)?.5:AIM; // FFP: reticle keeps its mil size; field of view in mil = FOV1/mag
 X.fillStyle='#0b0f12';X.fillRect(0,0,Wd,Wd);X.save();X.beginPath();X.arc(cx,cy,220,0,7);X.clip();X.fillStyle='#cfd6da';X.fillRect(0,0,Wd,Wd);
-if(IM.t)X.drawImage(IM.t,mx-tw/2,my-AIM*th,tw,th);
-const gx=cx-w.whAlt*zm,gh=Math.abs(gx-mx)>3;if(gh){X.save();X.setLineDash([5,3]);X.strokeStyle='#d97706';X.lineWidth=1.5;X.strokeRect(gx-tw/2,my-AIM*th,tw,th);X.restore()}
+if(aim===AIM){if(IM.t)X.drawImage(IM.t,mx-tw/2,my-aim*th,tw,th)}else{X.fillStyle='rgba(217,119,6,.45)';X.fillRect(mx-tw/2,my-th/2,tw,th);X.strokeStyle='#92400e';X.lineWidth=1.5;if(TG.dash)X.setLineDash([6,4]);X.strokeRect(mx-tw/2,my-th/2,tw,th);X.setLineDash([])}
+const gx=cx-w.whAlt*zm,gh=Math.abs(gx-mx)>3;if(gh){X.save();X.setLineDash([5,3]);X.strokeStyle='#d97706';X.lineWidth=1.5;X.strokeRect(gx-tw/2,my-aim*th,tw,th);X.restore()}
 X.strokeStyle='#fff';X.fillStyle='#10b981';X.lineWidth=1;X.beginPath();X.arc(mx,my,2.5,0,7);X.fill();X.stroke();
 if(IM.r){const s=zm/RPM;X.save();X.shadowColor='rgba(255,255,255,.95)';X.shadowBlur=2;X.drawImage(IM.r,cx-RCX*s,cy-RCY*s,IM.r.width*s,IM.r.height*s);X.restore()}
 if(S.zo&&hu>0){X.strokeStyle=X.fillStyle='#d97706';X.lineWidth=2;X.beginPath();X.moveTo(cx-16,my);X.lineTo(cx+16,my);X.stroke();X.font='bold 11px sans-serif';X.fillText(hu.toFixed(2)+' mil',cx+20,my-4)}
 X.restore();X.strokeStyle='#333';X.lineWidth=3;X.beginPath();X.arc(cx,cy,220,0,7);X.stroke();
 X.fillStyle='#9ca3af';X.font='11px sans-serif';X.fillText(`${f1(mag)}x · FOV ${f1(fov)} mil (${f1(fov*w.r/1000)} m at ${f1(w.r)} m)`,8,14);
-X.fillText(`target 500 x 1500 mm = ${f1(.5/w.r*1000)} x ${f1(1.5/w.r*1000)} mil`,8,Wd-8);
+X.fillText(`target ${TG.on?fm(TG.w)+' x '+fm(TG.h):'500.0 mm x 1500.0 mm'} = ${f1((TG.on?TG.w:.5)/w.r*1000)} x ${f1((TG.on?TG.h:1.5)/w.r*1000)} mil`,8,Wd-8);
 if(gh)X.fillText('dashed = target position '+(S.spinOn?'without':'with')+' spin drift',8,Wd-22)}
 function ld(k,s){const i=new Image();i.onload=()=>{IM[k]=i;sel()};i.src=s}
 function up(k,e){const f=e.files[0];if(f)ld(k,URL.createObjectURL(f))}
 function csv(){let s='Range m,Drop cm,Hold mil,Drift cm,Wind hold mil,Velocity m/s,Energy J,Time ms\n';D.forEach(r=>s+=[f1(r.r),f1(r.drop),r.hold.toFixed(2),f1(r.drift),r.wh.toFixed(2),f1(r.v),f1(r.e),f1(r.t)].join(',')+'\n');
 const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([s],{type:'text/csv'}));a.download='range-card.csv';a.click()}
-document.querySelectorAll('.panel input:not([type=file]):not(#rmil),.panel select:not(#rifle):not(#ammo):not(#optic)').forEach(e=>{if(!['sl','zm','mag','fov1','fovm','qws','qwd','rs','rh','rw','rhu','rwu','tspd','qsp'].includes(e.id))e.addEventListener('input',run)});
+document.querySelectorAll('.panel input:not([type=file]):not(#rmil),.panel select:not(#rifle):not(#ammo):not(#optic)').forEach(e=>{if(!['sl','zm','mag','fov1','fovm','qws','qwd','rs','rh','rw','rhu','rwu','rz','tspd','qsp'].includes(e.id))e.addEventListener('input',run)});
 ld('t',TGT);ld('r',RET);
 function stp(d){const e=$('sl');e.value=Math.min(+e.max,Math.max(+e.min,+e.value+d));sel()}
 function qw(){$('wspd').value=$('qws').value;$('wdir').value=$('qwd').value;run()}
 function setView(v){document.body.classList.toggle('simple',v==='simple');$('vb').textContent=v==='simple'?'Advanced':'Simple view';try{localStorage.setItem('view',v)}catch(e){}if(D.length)sel()}
 function tv(){setView(document.body.classList.contains('simple')?'adv':'simple')}
 $('qwd').innerHTML=$('wdir').innerHTML;
-// ---- Ranging mode: box of known size vs. scalable reticle -> distance = size / mil ----
-const RG={on:false,z:140,ox:0,oy:0,q:null},cl=(v,a,b)=>Math.min(b,Math.max(a,v));
-function tr(){RG.on=!RG.on;document.body.classList.toggle('rng',RG.on);$('rb').classList.toggle('on',RG.on);if(RG.on)rr();else if(D.length)sel()}
-function zs(d){$('rs').value=cl(+$('rs').value+d,0,240);rr()}
-function rr(){const U={m:1,cm:.01,mm:.001},h=(parseFloat($('rh').value)||0)*U[$('rhu').value],w=(parseFloat($('rw').value)||0)*U[$('rwu').value];
-RG.z=+$('rs').value;const pm=4*Math.pow(10,RG.z/100),q={pm,h,w};
-if(h>0||w>0){const bh=h>0?h:w,bw=w>0?w:h,k=300/Math.max(bh,bw);q.Hpx=bh*k;q.Wpx=bw*k;
-const pM=h>0?h:w,pPx=h>0?q.Hpx:q.Wpx;q.dist=pM*1000/(pPx/pm);const mh=q.Hpx/pm,mw=q.Wpx/pm;
-$('rd').textContent=f1(q.dist)+' m';$('rm').textContent=(h>0?'Height '+f1(mh)+' mil':'')+(h>0&&w>0?' · ':'')+(w>0?'Width '+f1(mw)+' mil':'');
-q.r=cl(Math.round(q.dist/25)*25,100,1000);$('ru').textContent='Use '+q.r+' m as target range'+(q.dist<100||q.dist>1000?' (nearest on slider)':'')}
+// ---- Ranging mode: true-scale VCOG reticle + target box of known size; distance = size / mil ----
+const RG={on:false,mx:0,my:0,q:null,init:0},TG={on:false,h:1.5,w:.5,dash:false},cl=(v,a,b)=>Math.min(b,Math.max(a,v)),fm=x=>x>=1?f1(x)+' m':f1(x*1000)+' mm';
+function rowAt(r){if(!D.length)return null;const i=D.findIndex(x=>x.r>=r);if(i<0)return D[D.length-1];if(i===0||D[i].r===r)return D[i];const a=D[i-1],b=D[i],f=(r-a.r)/(b.r-a.r),o={r};for(const k in a)if(k!=='r')o[k]=a[k]+(b[k]-a[k])*f;return o}
+function tgUpdate(){const c=$('tgchip');c.hidden=!TG.on;c.innerHTML=TG.on?`Target: ${fm(TG.w)} wide × ${fm(TG.h)} high (from ranging) <button class="s" style="width:auto;padding:4px 10px;margin:0 0 0 8px;font-size:.75rem" onclick="tgReset()">Use cardboard</button>`:''}
+function tgReset(){TG.on=false;tgUpdate();sel()}
+function tr(){RG.on=!RG.on;document.body.classList.toggle('rng',RG.on);$('rb').classList.toggle('on',RG.on);if(RG.on){rr();if(!RG.init){RG.init=1;ral('h')}}else if(D.length)sel()}
+function zs(d){$('rs').value=cl(+$('rs').value+d,-70,160);rr()}
+function ral(k){const q=RG.q;if(!q||!q.mh)return;if(k==='h'){RG.mx=0;RG.my=-q.mh/2}else{RG.mx=-q.mw/2;RG.my=0}rr()}
+function rr(){const U={m:1,cm:.01,mm:.001},h=(parseFloat($('rh').value)||0)*U[$('rhu').value],w=(parseFloat($('rw').value)||0)*U[$('rwu').value],
+mil=Math.pow(10,+$('rs').value/100),pp=6*Math.pow(10,+$('rz').value/100*1.3),q={pp,h,w,mil};$('rmv').textContent=mil.toFixed(2);
+if(h>0||w>0){const bh=h>0?h:w,bw=w>0?w:h,pM=h>0?h:w;q.bh=bh;q.bw=bw;q.mh=mil*bh/pM;q.mw=mil*bw/pM;q.dist=pM*1000/mil;
+$('rd').textContent=f1(q.dist)+' m';$('rm').textContent=(h>0?'Height '+q.mh.toFixed(2)+' mil':'')+(h>0&&w>0?' · ':'')+(w>0?'Width '+q.mw.toFixed(2)+' mil':'');
+q.r=cl(Math.round(q.dist),100,1000);$('ru').textContent='Use '+q.r+' m as target range'+(q.dist<100||q.dist>1000?' (nearest allowed)':'')}
 else{$('rd').textContent='–';$('rm').textContent='Enter height and/or width';$('ru').textContent='Use as target range'}
 RG.q=q;drawR()}
-function ruse(){if(RG.q&&RG.q.r){$('sl').value=RG.q.r;tr()}}
+function ruse(){const q=RG.q;if(!q||!q.r)return;TG.on=true;TG.h=q.bh;TG.w=q.bw;TG.dash=!(q.h>0&&q.w>0);$('sl').value=q.r;tgUpdate();tr()}
+// Trijicon VCOG MRAD reticle, official geometry in mil: p = px per mil
+function vcog(X,ox,oy,p){const lw=Math.max(1.2,.1*p);X.fillStyle='#e63b1f';
+for(let a=45;a<360;a+=90){const A=(a-22.1)*Math.PI/180,B=(a+22.1)*Math.PI/180;X.beginPath();X.arc(ox,oy,9.65*p,A,B);X.arc(ox,oy,8.15*p,B,A,true);X.closePath();X.fill()}
+X.strokeStyle=X.fillStyle='#111';X.lineWidth=lw;X.beginPath();X.moveTo(ox-19.4*p,oy);X.lineTo(ox+19.4*p,oy);X.moveTo(ox,oy-16*p);X.lineTo(ox,oy+21*p);
+for(let m=.5;m<=21;m+=.5){const int=m%1===0;if(m>5&&!int)continue;const hl=(m%5===0?1:int?.5:.25)*p;
+if(m<=19.4){X.moveTo(ox+m*p,oy-hl);X.lineTo(ox+m*p,oy+hl);X.moveTo(ox-m*p,oy-hl);X.lineTo(ox-m*p,oy+hl)}
+X.moveTo(ox-hl,oy+m*p);X.lineTo(ox+hl,oy+m*p);if(m<=16){X.moveTo(ox-hl,oy-m*p);X.lineTo(ox+hl,oy-m*p)}}
+X.stroke();const fs=cl(1.5*p,10,30);X.font=fs+'px sans-serif';[5,10,15,20].forEach(m=>X.fillText(m,ox+1.2*p,oy+m*p+fs*.35));
+X.strokeStyle=X.fillStyle='#e63b1f';X.lineWidth=Math.max(.15*p,1.2);X.beginPath();for(const[sx,sy]of[[1,0],[-1,0],[0,1],[0,-1]]){X.moveTo(ox+sx*.17*p,oy+sy*.17*p);X.lineTo(ox+sx*.5*p,oy+sy*.5*p)}X.stroke();X.beginPath();X.arc(ox,oy,Math.max(.075*p,1),0,7);X.fill()}
 function drawR(){const c=$('cv'),X=c.getContext('2d'),Wd=460,dpr=window.devicePixelRatio||1,cw=c.clientWidth||Wd,k=cw*dpr/Wd;c.width=c.height=Math.round(cw*dpr);X.setTransform(k,0,0,k,0,0);
-const cx=Wd/2,cy=Wd/2,q=RG.q||{pm:100};X.fillStyle='#0b0f12';X.fillRect(0,0,Wd,Wd);X.save();X.beginPath();X.arc(cx,cy,220,0,7);X.clip();X.fillStyle='#cfd6da';X.fillRect(0,0,Wd,Wd);
-if(q.Hpx){const x=cx-q.Wpx/2,y=cy-q.Hpx/2;X.fillStyle='rgba(217,119,6,.45)';X.fillRect(x,y,q.Wpx,q.Hpx);X.strokeStyle='#92400e';X.lineWidth=2;if(!(q.h>0&&q.w>0))X.setLineDash([6,4]);X.strokeRect(x,y,q.Wpx,q.Hpx);X.setLineDash([])}
-// vector VCOG MRAD reticle (1 mil ticks, long every 5 mil, 4 red ring segments), true to mil scale
-const p=q.pm,ox=cx+RG.ox,oy=cy+RG.oy;X.fillStyle='#e63b1f';
-for(let a=45;a<360;a+=90){const A=(a-25)*Math.PI/180,B=(a+25)*Math.PI/180;X.beginPath();X.arc(ox,oy,10.4*p,A,B);X.arc(ox,oy,8.2*p,B,A,true);X.closePath();X.fill()}
-X.strokeStyle='#111';X.fillStyle='#111';X.lineWidth=1.3;X.beginPath();X.moveTo(ox-19.4*p,oy);X.lineTo(ox+19.4*p,oy);X.moveTo(ox,oy-16*p);X.lineTo(ox,oy+16*p);
-for(let m=1;m<=19;m++){const l=(m%5?.36:.9)*p;for(const s of[-1,1]){X.moveTo(ox+s*m*p,oy-l);X.lineTo(ox+s*m*p,oy+l);if(m<=16){X.moveTo(ox-l,oy+s*m*p);X.lineTo(ox+l,oy+s*m*p)}}}
-X.stroke();X.font='11px sans-serif';[5,10,15].forEach(m=>X.fillText(m,ox+1.2*p+3,oy+m*p+4));
-X.strokeStyle='#e63b1f';X.lineWidth=1.5;X.beginPath();X.moveTo(ox-Math.max(.25*p,3),oy);X.lineTo(ox+Math.max(.25*p,3),oy);X.moveTo(ox,oy-Math.max(.25*p,3));X.lineTo(ox,oy+Math.max(.25*p,3));X.stroke();
+const cx=Wd/2,cy=Wd/2,q=RG.q||{pp:23},pp=q.pp;X.fillStyle='#0b0f12';X.fillRect(0,0,Wd,Wd);X.save();X.beginPath();X.arc(cx,cy,220,0,7);X.clip();X.fillStyle='#cfd6da';X.fillRect(0,0,Wd,Wd);
+if(q.mh){const bw=q.mw*pp,bh=q.mh*pp,x=cx-bw/2,y=cy-bh/2,both=q.h>0&&q.w>0;
+if(both&&Math.abs(q.bh/q.bw-3)<.02&&IM.t)X.drawImage(IM.t,x,y,bw,bh);else{X.fillStyle='rgba(217,119,6,.45)';X.fillRect(x,y,bw,bh)}
+X.strokeStyle='#92400e';X.lineWidth=1.5;if(!both)X.setLineDash([6,4]);X.strokeRect(x,y,bw,bh);X.setLineDash([])}
+vcog(X,cx+RG.mx*pp,cy+RG.my*pp,pp);
 X.restore();X.strokeStyle='#333';X.lineWidth=3;X.beginPath();X.arc(cx,cy,220,0,7);X.stroke();
-X.fillStyle='#9ca3af';X.font='11px sans-serif';X.fillText(`Ranging · box ${q.h>0?$('rh').value+' '+$('rhu').value:'–'} high × ${q.w>0?$('rw').value+' '+$('rwu').value:'–'} wide`,8,14)}
+X.fillStyle='#9ca3af';X.font='11px sans-serif';X.fillText(q.mh?`Ranging · target ${f1(q.mw)} x ${f1(q.mh)} mil`:'Ranging · enter target size',8,14);X.fillText('VCOG MRAD reticle, true scale',8,Wd-8)}
 {const cv=$('cv'),PT=new Map();let pd=0;const pdist=()=>{const v=[...PT.values()];return v.length<2?0:Math.hypot(v[0][0]-v[1][0],v[0][1]-v[1][1])},
-zset=z=>{$('rs').value=cl(z,0,240)};
+zset=z=>{$('rs').value=cl(z,-70,160)};
 cv.addEventListener('pointerdown',e=>{if(!RG.on)return;try{cv.setPointerCapture(e.pointerId)}catch(x){}PT.set(e.pointerId,[e.clientX,e.clientY]);pd=pdist()});
-cv.addEventListener('pointermove',e=>{if(!RG.on||!PT.has(e.pointerId))return;const o=PT.get(e.pointerId),sc=460/(cv.clientWidth||460);PT.set(e.pointerId,[e.clientX,e.clientY]);
-if(PT.size===1){RG.ox=cl(RG.ox+(e.clientX-o[0])*sc,-220,220);RG.oy=cl(RG.oy+(e.clientY-o[1])*sc,-220,220)}
-else if(PT.size===2){const d=pdist();if(pd&&d)zset(RG.z+100*Math.log10(d/pd));pd=d}rr()});
+cv.addEventListener('pointermove',e=>{if(!RG.on||!PT.has(e.pointerId)||!RG.q)return;const o=PT.get(e.pointerId),sc=460/(cv.clientWidth||460),pp=RG.q.pp;PT.set(e.pointerId,[e.clientX,e.clientY]);
+if(PT.size===1){RG.mx=cl(RG.mx+(e.clientX-o[0])*sc/pp,-60,60);RG.my=cl(RG.my+(e.clientY-o[1])*sc/pp,-60,60)}
+else if(PT.size===2){const d=pdist();if(pd&&d)zset(+$('rs').value+100*Math.log10(d/pd));pd=d}rr()});
 ['pointerup','pointercancel'].forEach(t=>cv.addEventListener(t,e=>{PT.delete(e.pointerId);pd=0}));
-cv.addEventListener('wheel',e=>{if(!RG.on)return;e.preventDefault();zset(RG.z-Math.sign(e.deltaY)*6);rr()},{passive:false});
-cv.addEventListener('dblclick',()=>{if(RG.on){RG.ox=RG.oy=0;rr()}})}
+cv.addEventListener('wheel',e=>{if(!RG.on)return;e.preventDefault();zset(+$('rs').value-Math.sign(e.deltaY)*3);rr()},{passive:false});
+cv.addEventListener('dblclick',()=>{if(RG.on)ral('h')})}
 let view=null;try{view=localStorage.getItem('view')}catch(e){}
 if(!view)view=(matchMedia('(pointer:coarse)').matches||innerWidth<992)?'simple':'adv';
 if(innerWidth<700)$('rt').classList.add('lite');
